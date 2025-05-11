@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@RequestMapping("/api")
 @CrossOrigin(origins = "*") // Enable for frontend access
 public class BookController {
 
@@ -19,11 +20,11 @@ public class BookController {
         this.bookRepository = bookRepository;
     }
 
-    @GetMapping("/api/books")
+    @GetMapping("/books")
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
     }
-    @GetMapping("/api/books/{id}")
+    @GetMapping("/books/{id}")
     public ResponseEntity<Book> getBookById(@PathVariable Long id) {
         return bookRepository.findById(id)
                 .map(ResponseEntity::ok)//
