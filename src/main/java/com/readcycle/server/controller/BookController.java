@@ -26,7 +26,7 @@ public class BookController {
     @GetMapping("/api/books/{id}")
     public ResponseEntity<Book> getBookById(@PathVariable Long id) {
         return bookRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(ResponseEntity::ok)//
                 .orElse(ResponseEntity.notFound().build());
     }
 }
