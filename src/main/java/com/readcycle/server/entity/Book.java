@@ -23,6 +23,8 @@ public class Book {
     private double price;
     private String condition;
     private String description;
+    @Column(name = "image_url")
+    private String imageUrl;
 
     // Add constructors, getters, and setters
 
