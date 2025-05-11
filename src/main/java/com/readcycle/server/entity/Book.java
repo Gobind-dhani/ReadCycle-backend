@@ -25,6 +25,16 @@ public class Book {
     private String description;
     @Column(name = "image_url")
     private String imageUrl;
+    private String publisher;
+    private String isbn;
+    private String language;
+    private String genre;
+    private Integer pages;
+    private String format;
+    @Column(name = "author_bio", columnDefinition = "TEXT")
+    private String authorBio;
+    @Column(name = "average_rating")
+    private Float averageRating;
 
     // Add constructors, getters, and setters
 
