@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
+
 
 @Entity
 @Data
@@ -28,7 +30,10 @@ public class Book {
     private String publisher;
     private String isbn;
     private String language;
-    private String genre;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "book_genres", joinColumns = @JoinColumn(name = "book_id"))
+    @Column(name = "genre")
+    private Set<String> genres;
     private Integer pages;
     private String format;
     @Column(name = "author_bio", columnDefinition = "TEXT")
