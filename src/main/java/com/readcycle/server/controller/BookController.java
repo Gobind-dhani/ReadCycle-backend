@@ -21,13 +21,19 @@ public class BookController {
     }
 
     @GetMapping("/books")
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
+    public List<Book> getBooks(@RequestParam(required = false) String genre) {
+        if (genre != null && !genre.isEmpty()) {
+            return bookRepository.findByGenreIgnoreCase(genre);
+        } else {
+            return bookRepository.findAll();
+        }
     }
+
     @GetMapping("/books/{id}")
     public ResponseEntity<Book> getBookById(@PathVariable Long id) {
         return bookRepository.findById(id)
                 .map(ResponseEntity::ok)//
                 .orElse(ResponseEntity.notFound().build());
     }
+
 }
