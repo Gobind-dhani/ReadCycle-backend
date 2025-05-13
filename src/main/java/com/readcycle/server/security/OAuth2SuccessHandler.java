@@ -10,6 +10,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Component
 @RequiredArgsConstructor
@@ -17,6 +19,9 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+
+    // Replace this with your actual frontend URL
+    private final String FRONTEND_REDIRECT_URL = "http://localhost:3000/";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -39,7 +44,12 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
 
         String token = jwtUtil.generateToken(user.getId().toString());
 
-        response.setContentType("application/json");
-        response.getWriter().write("{\"token\":\"" + token + "\"}");
+        // Redirect to frontend with token in URL
+        String redirectUrl = "http://localhost:3000/oauth2/redirect"
+                + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+                + "&name=" + URLEncoder.encode(user.getName(), StandardCharsets.UTF_8)
+                + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+
+        response.sendRedirect(redirectUrl);
     }
 }
