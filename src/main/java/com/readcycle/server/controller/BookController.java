@@ -36,4 +36,9 @@ public class BookController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/books/search")
+    public List<Book> searchBooks(@RequestParam("q") String query) {
+        return bookRepository.findByTitleContainingIgnoreCaseOrAuthorContainingIgnoreCase(query, query);
+    }
+
 }
