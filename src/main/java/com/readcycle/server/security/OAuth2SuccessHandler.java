@@ -1,5 +1,6 @@
 package com.readcycle.server.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.readcycle.server.entity.User;
 import com.readcycle.server.repository.UserRepository;
 import jakarta.servlet.ServletException;
@@ -19,9 +20,9 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
-    // Replace this with your actual frontend URL
-    private final String FRONTEND_REDIRECT_URL = "http://localhost:3000/";
+    private final String FRONTEND_REDIRECT_URL = "http://localhost:3000/oauth2/redirect";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -44,11 +45,14 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
 
         String token = jwtUtil.generateToken(user.getId().toString());
 
-        // Redirect to frontend with token in URL
-        String redirectUrl = "http://localhost:3000/oauth2/redirect"
+        // Serialize user object to JSON and encode it for URL
+        String userJson = objectMapper.writeValueAsString(user);
+        String encodedUserJson = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
+
+        // Redirect with token and encoded user JSON
+        String redirectUrl = FRONTEND_REDIRECT_URL
                 + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
-                + "&name=" + URLEncoder.encode(user.getName(), StandardCharsets.UTF_8)
-                + "&email=" + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
+                + "&user=" + encodedUserJson;
 
         response.sendRedirect(redirectUrl);
     }

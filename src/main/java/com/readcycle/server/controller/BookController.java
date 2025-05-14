@@ -4,9 +4,12 @@ package com.readcycle.server.controller;
 
 import com.readcycle.server.entity.Book;
 import com.readcycle.server.repository.BookRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -39,6 +42,12 @@ public class BookController {
     @GetMapping("/books/search")
     public List<Book> searchBooks(@RequestParam("q") String query) {
         return bookRepository.findByTitleContainingIgnoreCaseOrAuthorContainingIgnoreCase(query, query);
+    }
+
+    @GetMapping("/logout")
+    public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        request.getSession().invalidate(); // Invalidate the session
+        response.sendRedirect("http://localhost:3000"); // Redirect to homepage
     }
 
 }
