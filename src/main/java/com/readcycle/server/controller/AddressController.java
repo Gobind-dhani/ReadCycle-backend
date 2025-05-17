@@ -39,7 +39,36 @@ public class AddressController {
         return addressRepository.findByUser(user);
     }
 
-    // ✅ DELETE address endpoint
+    // ✅ POST new address with optional isDefault flag
+    @PostMapping
+    public Address addAddress(@RequestBody Address address, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Missing or invalid Authorization header");
+        }
+
+        String token = authHeader.substring(7);
+        String userId = jwtUtil.validateAndGetUserId(token);
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        address.setUser(user);
+
+        if (address.isDefault()) {
+            // Unset default for all other addresses of this user
+            List<Address> userAddresses = addressRepository.findByUser(user);
+            for (Address addr : userAddresses) {
+                if (addr.isDefault()) {
+                    addr.setDefault(false);
+                    addressRepository.save(addr);
+                }
+            }
+        }
+
+        return addressRepository.save(address);
+    }
+
+    // ✅ DELETE address (existing)
     @DeleteMapping("/{id}")
     public void deleteAddress(@PathVariable Long id, HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
@@ -55,7 +84,6 @@ public class AddressController {
         Address address = addressRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Address not found"));
 
-        // Only allow deletion if the address belongs to the authenticated user
         if (!address.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized to delete this address");
         }
