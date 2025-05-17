@@ -26,19 +26,40 @@ public class AddressController {
 
     @GetMapping
     public List<Address> getUserAddresses(HttpServletRequest request) {
-        // Extract JWT from Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new RuntimeException("Missing or invalid Authorization header");
         }
 
         String token = authHeader.substring(7);
-        String userId = jwtUtil.validateAndGetUserId(token);  // This uses the "sub" claim
-
-        // Try to fetch user from DB
+        String userId = jwtUtil.validateAndGetUserId(token);
         User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return addressRepository.findByUser(user);
+    }
+
+    // ✅ DELETE address endpoint
+    @DeleteMapping("/{id}")
+    public void deleteAddress(@PathVariable Long id, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Missing or invalid Authorization header");
+        }
+
+        String token = authHeader.substring(7);
+        String userId = jwtUtil.validateAndGetUserId(token);
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Address address = addressRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        // Only allow deletion if the address belongs to the authenticated user
+        if (!address.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized to delete this address");
+        }
+
+        addressRepository.delete(address);
     }
 }
