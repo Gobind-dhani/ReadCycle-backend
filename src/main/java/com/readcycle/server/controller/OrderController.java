@@ -3,12 +3,14 @@ package com.readcycle.server.controller;
 import com.readcycle.server.entity.Order;
 import com.readcycle.server.entity.OrderItem;
 import com.readcycle.server.entity.User;
+import com.readcycle.server.repository.CartItemRepository;
 import com.readcycle.server.repository.OrderRepository;
 import com.readcycle.server.repository.UserRepository;
 import com.readcycle.server.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +22,7 @@ public class OrderController {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final CartItemRepository cartItemRepository;
     private final JwtUtil jwtUtil;
 
     // ✅ GET orders for the authenticated user
@@ -41,6 +44,7 @@ public class OrderController {
 
     // ✅ POST order for authenticated user
     @PostMapping
+    @Transactional
     public ResponseEntity<Order> placeOrder(@RequestBody Order order, HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -61,6 +65,11 @@ public class OrderController {
             }
         }
 
-        return ResponseEntity.ok(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        // 🧹 Clear the user's cart after successful order
+        cartItemRepository.deleteByUser(user);
+
+        return ResponseEntity.ok(savedOrder);
     }
 }

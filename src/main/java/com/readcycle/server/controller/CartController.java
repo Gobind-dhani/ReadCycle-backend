@@ -62,4 +62,9 @@ public class CartController {
 
         cartItemRepository.delete(item);
     }
+    @DeleteMapping("/clear")
+    public void clearCart(HttpServletRequest request) {
+        User user = extractUserFromRequest(request);
+        cartItemRepository.deleteByUser(user);
+    }
 }
