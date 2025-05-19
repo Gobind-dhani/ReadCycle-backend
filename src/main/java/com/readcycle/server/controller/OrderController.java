@@ -1,6 +1,7 @@
 package com.readcycle.server.controller;
 
 import com.readcycle.server.entity.Order;
+import com.readcycle.server.entity.OrderItem;
 import com.readcycle.server.entity.User;
 import com.readcycle.server.repository.OrderRepository;
 import com.readcycle.server.repository.UserRepository;
@@ -52,6 +53,14 @@ public class OrderController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         order.setUser(user);
+
+        // 🔧 Set the back-reference on each OrderItem
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                item.setOrder(order);
+            }
+        }
+
         return ResponseEntity.ok(orderRepository.save(order));
     }
 }

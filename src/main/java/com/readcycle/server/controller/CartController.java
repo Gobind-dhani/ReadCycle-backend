@@ -4,41 +4,62 @@ import com.readcycle.server.entity.CartItem;
 import com.readcycle.server.entity.User;
 import com.readcycle.server.repository.CartItemRepository;
 import com.readcycle.server.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import com.readcycle.server.security.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/cart")
-@RequiredArgsConstructor
 public class CartController {
 
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+
+    public CartController(CartItemRepository cartItemRepository, UserRepository userRepository, JwtUtil jwtUtil) {
+        this.cartItemRepository = cartItemRepository;
+        this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
+    }
+
+    private User extractUserFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Missing or invalid Authorization header");
+        }
+
+        String token = authHeader.substring(7);
+        String userId = jwtUtil.validateAndGetUserId(token);
+        return userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     @GetMapping
-    public ResponseEntity<List<CartItem>> getCart(Principal principal) {
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow();
-        return ResponseEntity.ok(cartItemRepository.findByUser(user));
+    public List<CartItem> getUserCart(HttpServletRequest request) {
+        User user = extractUserFromRequest(request);
+        return cartItemRepository.findByUser(user);
     }
 
     @PostMapping
-    public ResponseEntity<CartItem> addToCart(@RequestBody CartItem item, Principal principal) {
-        User user = userRepository.findByEmail(principal.getName()).orElseThrow();
+    public CartItem addToCart(@RequestBody CartItem item, HttpServletRequest request) {
+        User user = extractUserFromRequest(request);
         item.setUser(user);
-        return ResponseEntity.ok(cartItemRepository.save(item));
+        return cartItemRepository.save(item);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> removeFromCart(@PathVariable Long id, Principal principal) {
-        CartItem item = cartItemRepository.findById(id).orElseThrow();
-        if (!item.getUser().getEmail().equals(principal.getName())) {
-            return ResponseEntity.status(403).build();
+    public void deleteCartItem(@PathVariable Long id, HttpServletRequest request) {
+        User user = extractUserFromRequest(request);
+
+        CartItem item = cartItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+
+        if (!item.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized to delete this cart item");
         }
+
         cartItemRepository.delete(item);
-        return ResponseEntity.ok().build();
     }
 }
