@@ -23,6 +23,7 @@ public class Order {
     private String status; // e.g., PENDING, COMPLETED
 
     private LocalDateTime orderDate;
+    private String razorpayOrderId;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
