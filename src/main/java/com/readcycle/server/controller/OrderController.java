@@ -2,15 +2,8 @@ package com.readcycle.server.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.readcycle.server.entity.Address;
-import com.readcycle.server.entity.CartItem;
-import com.readcycle.server.entity.Order;
-import com.readcycle.server.entity.OrderItem;
-import com.readcycle.server.entity.User;
-import com.readcycle.server.repository.AddressRepository;
-import com.readcycle.server.repository.CartItemRepository;
-import com.readcycle.server.repository.OrderRepository;
-import com.readcycle.server.repository.UserRepository;
+import com.readcycle.server.entity.*;
+import com.readcycle.server.repository.*;
 import com.readcycle.server.security.JwtUtil;
 import com.readcycle.server.util.SSLUtil;
 import com.razorpay.RazorpayClient;
@@ -64,32 +57,6 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @PostMapping
-    @Transactional
-    public ResponseEntity<Order> placeOrder(@RequestBody Order order, HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("Missing or invalid Authorization header");
-        }
-
-        String token = authHeader.substring(7);
-        String userId = jwtUtil.validateAndGetUserId(token);
-        User user = userRepository.findById(Long.parseLong(userId))
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        order.setUser(user);
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                item.setOrder(order);
-            }
-        }
-
-        Order savedOrder = orderRepository.save(order);
-        cartItemRepository.deleteByUser(user);
-
-        return ResponseEntity.ok(savedOrder);
-    }
-
     @PostMapping("/create-razorpay-order")
     @Transactional
     public ResponseEntity<Map<String, Object>> createRazorpayOrder(@RequestBody Map<String, Object> data, HttpServletRequest request) {
@@ -130,7 +97,6 @@ public class OrderController {
                 return addressRepository.save(fallback);
             });
 
-            // Fetch cart items for products description
             List<CartItem> cartItems = cartItemRepository.findByUser(user);
             String productDescription = cartItems.stream()
                     .map(CartItem::getTitle)
@@ -177,17 +143,13 @@ public class OrderController {
             payload.put("shipments", List.of(shipment));
 
             String payloadJson = objectMapper.writeValueAsString(payload);
-            System.out.println("📦 Delhivery Payload JSON: " + payloadJson);
-
-            String encodedPayload = "format=json&data=" +
-                    URLEncoder.encode(payloadJson, StandardCharsets.UTF_8);
+            String encodedPayload = "format=json&data=" + URLEncoder.encode(payloadJson, StandardCharsets.UTF_8);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             headers.set("Authorization", "Token de98d0920680bab24a81d26e9f588e325dc20090");
 
             HttpEntity<String> requestEntity = new HttpEntity<>(encodedPayload, headers);
-
             RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> delhiveryResponse = restTemplate.postForEntity(
                     "https://track.delhivery.com/api/cmu/create.json",
@@ -197,12 +159,14 @@ public class OrderController {
 
             String awbNumber = null;
             JsonNode delhiveryJson = objectMapper.readTree(delhiveryResponse.getBody());
-            if (delhiveryJson.has("shipment") && delhiveryJson.get("shipment").has("waybill")) {
-                awbNumber = delhiveryJson.get("shipment").get("waybill").asText();
-            } else if (delhiveryJson.has("waybill")) {
-                awbNumber = delhiveryJson.get("waybill").asText();
+            if (delhiveryJson.has("packages") && delhiveryJson.get("packages").isArray()) {
+                JsonNode packageNode = delhiveryJson.get("packages").get(0);
+                if (packageNode.has("waybill")) {
+                    awbNumber = packageNode.get("waybill").asText();
+                }
             }
 
+            // Construct and save final Order
             Order order = new Order();
             order.setUser(user);
             order.setRazorpayOrderId(razorpayOrder.get("id"));
@@ -211,14 +175,29 @@ public class OrderController {
             order.setOrderDate(LocalDateTime.now());
             order.setTotalAmount(amount / 100.0);
 
+            List<OrderItem> orderItems = new ArrayList<>();
+            for (CartItem cartItem : cartItems) {
+                OrderItem item = new OrderItem();
+                item.setBookId(cartItem.getBookId());
+                item.setTitle(cartItem.getTitle());
+                item.setPrice(cartItem.getPrice());
+                item.setQuantity(cartItem.getQuantity());
+                item.setOrder(order); // important for FK
+                orderItems.add(item);
+            }
+
+            order.setItems(orderItems);
             orderRepository.save(order);
+
+            // Clear the cart
+            cartItemRepository.deleteByUser(user);
 
             Map<String, Object> response = new HashMap<>();
             response.put("razorpay_order_id", razorpayOrder.get("id"));
             response.put("amount", razorpayOrder.get("amount"));
             response.put("currency", razorpayOrder.get("currency"));
-            response.put("delhivery_response", delhiveryResponse.getBody());
             response.put("awb", awbNumber);
+            response.put("delhivery_response", delhiveryResponse.getBody());
 
             return ResponseEntity.ok(response);
 
@@ -227,5 +206,4 @@ public class OrderController {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
-
 }
