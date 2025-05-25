@@ -11,6 +11,7 @@ import com.readcycle.server.repository.OrderRepository;
 import com.readcycle.server.repository.UserRepository;
 import com.readcycle.server.security.JwtUtil;
 import com.razorpay.RazorpayClient;
+import com.readcycle.server.util.SSLUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
@@ -90,7 +91,10 @@ public class OrderController {
     @PostMapping("/create-razorpay-order")
     @Transactional
     public ResponseEntity<Map<String, Object>> createRazorpayOrder(@RequestBody Map<String, Object> data, HttpServletRequest request) {
+
         try {
+
+            SSLUtil.disableSSLVerification();
             String authHeader = request.getHeader("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 throw new RuntimeException("Missing or invalid Authorization header");
