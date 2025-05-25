@@ -25,6 +25,8 @@ public class Order {
     private LocalDateTime orderDate;
     private String razorpayOrderId;
 
+    private String awb;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

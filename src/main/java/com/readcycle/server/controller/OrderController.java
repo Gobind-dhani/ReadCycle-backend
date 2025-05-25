@@ -1,7 +1,9 @@
 package com.readcycle.server.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.readcycle.server.entity.Address;
+import com.readcycle.server.entity.CartItem;
 import com.readcycle.server.entity.Order;
 import com.readcycle.server.entity.OrderItem;
 import com.readcycle.server.entity.User;
@@ -10,8 +12,8 @@ import com.readcycle.server.repository.CartItemRepository;
 import com.readcycle.server.repository.OrderRepository;
 import com.readcycle.server.repository.UserRepository;
 import com.readcycle.server.security.JwtUtil;
-import com.razorpay.RazorpayClient;
 import com.readcycle.server.util.SSLUtil;
+import com.razorpay.RazorpayClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
@@ -91,10 +93,9 @@ public class OrderController {
     @PostMapping("/create-razorpay-order")
     @Transactional
     public ResponseEntity<Map<String, Object>> createRazorpayOrder(@RequestBody Map<String, Object> data, HttpServletRequest request) {
-
         try {
-
             SSLUtil.disableSSLVerification();
+
             String authHeader = request.getHeader("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 throw new RuntimeException("Missing or invalid Authorization header");
@@ -116,7 +117,6 @@ public class OrderController {
             JSONObject options = new JSONObject(optionsMap);
             com.razorpay.Order razorpayOrder = razorpayClient.Orders.create(options);
 
-            // 🌐 Delhivery Integration
             ObjectMapper objectMapper = new ObjectMapper();
             List<Address> addresses = addressRepository.findByUser(user);
 
@@ -130,6 +130,13 @@ public class OrderController {
                 return addressRepository.save(fallback);
             });
 
+            // Fetch cart items for products description
+            List<CartItem> cartItems = cartItemRepository.findByUser(user);
+            String productDescription = cartItems.stream()
+                    .map(CartItem::getTitle)
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("Books");
+
             Map<String, Object> pickupLocation = Map.of(
                     "name", "ReRead Warehouse",
                     "address", "F-228, Lado Sarai",
@@ -141,8 +148,8 @@ public class OrderController {
             );
 
             Map<String, Object> shipment = new HashMap<>();
-            shipment.put("order", "ORDER_" + System.currentTimeMillis());
-            shipment.put("products_desc", "Book purchase");
+            shipment.put("order", razorpayOrder.get("id"));
+            shipment.put("products_desc", productDescription);
             shipment.put("cod_amount", 0);
             shipment.put("total_amount", amount / 100.0);
             shipment.put("name", defaultAddress.getName());
@@ -170,7 +177,7 @@ public class OrderController {
             payload.put("shipments", List.of(shipment));
 
             String payloadJson = objectMapper.writeValueAsString(payload);
-            System.out.println("📦 Delhivery Payload JSON: " + payloadJson); // <-- Logging the payload
+            System.out.println("📦 Delhivery Payload JSON: " + payloadJson);
 
             String encodedPayload = "format=json&data=" +
                     URLEncoder.encode(payloadJson, StandardCharsets.UTF_8);
@@ -188,75 +195,37 @@ public class OrderController {
                     String.class
             );
 
+            String awbNumber = null;
+            JsonNode delhiveryJson = objectMapper.readTree(delhiveryResponse.getBody());
+            if (delhiveryJson.has("shipment") && delhiveryJson.get("shipment").has("waybill")) {
+                awbNumber = delhiveryJson.get("shipment").get("waybill").asText();
+            } else if (delhiveryJson.has("waybill")) {
+                awbNumber = delhiveryJson.get("waybill").asText();
+            }
+
+            Order order = new Order();
+            order.setUser(user);
+            order.setRazorpayOrderId(razorpayOrder.get("id"));
+            order.setAwb(awbNumber);
+            order.setStatus("PENDING");
+            order.setOrderDate(LocalDateTime.now());
+            order.setTotalAmount(amount / 100.0);
+
+            orderRepository.save(order);
+
             Map<String, Object> response = new HashMap<>();
-            response.put("id", razorpayOrder.get("id"));
+            response.put("razorpay_order_id", razorpayOrder.get("id"));
             response.put("amount", razorpayOrder.get("amount"));
             response.put("currency", razorpayOrder.get("currency"));
             response.put("delhivery_response", delhiveryResponse.getBody());
+            response.put("awb", awbNumber);
 
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 
-    @PostMapping("/verify-payment")
-    @Transactional
-    public ResponseEntity<?> verifyPaymentAndSaveOrder(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
-        try {
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                throw new RuntimeException("Missing or invalid Authorization header");
-            }
-
-            String token = authHeader.substring(7);
-            String userId = jwtUtil.validateAndGetUserId(token);
-            User user = userRepository.findById(Long.parseLong(userId))
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            String razorpayOrderId = (String) payload.get("razorpay_order_id");
-            String razorpayPaymentId = (String) payload.get("razorpay_payment_id");
-            String razorpaySignature = (String) payload.get("razorpay_signature");
-
-            JSONObject attributes = new JSONObject();
-            attributes.put("razorpay_order_id", razorpayOrderId);
-            attributes.put("razorpay_payment_id", razorpayPaymentId);
-            attributes.put("razorpay_signature", razorpaySignature);
-
-            boolean isValid = com.razorpay.Utils.verifyPaymentSignature(attributes, "dTMvSdX663pm23V25U460UtT");
-            if (!isValid) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Invalid payment signature"));
-            }
-
-            Order order = new Order();
-            order.setUser(user);
-            order.setStatus("COMPLETED");
-            order.setOrderDate(LocalDateTime.now());
-
-            List<Map<String, Object>> itemsList = (List<Map<String, Object>>) payload.get("items");
-            if (itemsList != null) {
-                for (Map<String, Object> itemMap : itemsList) {
-                    OrderItem item = new OrderItem();
-                    item.setOrder(order);
-                    item.setBookId(Long.parseLong(itemMap.get("bookId").toString()));
-                    item.setTitle(itemMap.get("title").toString());
-                    item.setAuthor(itemMap.get("author").toString());
-                    item.setPrice(Double.parseDouble(itemMap.get("price").toString()));
-                    item.setQuantity(Integer.parseInt(itemMap.get("quantity").toString()));
-                    order.getItems().add(item);
-                }
-            }
-
-            order.setTotalAmount(Double.parseDouble(payload.get("totalAmount").toString()));
-            Order savedOrder = orderRepository.save(order);
-            cartItemRepository.deleteByUser(user);
-
-            return ResponseEntity.ok(savedOrder);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("message", "Failed to verify payment and save order", "error", e.getMessage()));
-        }
-    }
 }
