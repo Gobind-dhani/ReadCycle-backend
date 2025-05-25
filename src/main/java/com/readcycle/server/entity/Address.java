@@ -3,6 +3,8 @@ package com.readcycle.server.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+
+
 @Entity
 @Getter
 @Setter
