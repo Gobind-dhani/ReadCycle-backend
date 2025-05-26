@@ -31,6 +31,9 @@ public class OrderController {
     private final AddressRepository addressRepository;
     private final JwtUtil jwtUtil;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestTemplate restTemplate = new RestTemplate();
+
     private RazorpayClient razorpayClient;
 
     {
@@ -84,7 +87,6 @@ public class OrderController {
             JSONObject options = new JSONObject(optionsMap);
             com.razorpay.Order razorpayOrder = razorpayClient.Orders.create(options);
 
-            ObjectMapper objectMapper = new ObjectMapper();
             List<Address> addresses = addressRepository.findByUser(user);
 
             Optional<Address> defaultAddressOpt = addresses.stream()
@@ -150,7 +152,6 @@ public class OrderController {
             headers.set("Authorization", "Token de98d0920680bab24a81d26e9f588e325dc20090");
 
             HttpEntity<String> requestEntity = new HttpEntity<>(encodedPayload, headers);
-            RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> delhiveryResponse = restTemplate.postForEntity(
                     "https://track.delhivery.com/api/cmu/create.json",
                     requestEntity,
@@ -206,4 +207,36 @@ public class OrderController {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
+
+    // 🚚 Order Tracking Endpoint
+    @GetMapping("/track/{awb}")
+    public ResponseEntity<?> trackByAwb(@PathVariable String awb, HttpServletRequest request) {
+        try {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+            }
+
+            String token = authHeader.substring(7);
+            String userId = jwtUtil.validateAndGetUserId(token);
+
+            Optional<Order> optionalOrder = orderRepository.findByAwb(awb);
+            if (optionalOrder.isEmpty() || !optionalOrder.get().getUser().getId().equals(Long.parseLong(userId))) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Order not found or not authorized");
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Token de98d0920680bab24a81d26e9f588e325dc20090");
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            String url = "https://track.delhivery.com/api/v1/packages/json/?waybill=" + awb;
+
+            ResponseEntity<String> trackingResponse = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            return ResponseEntity.ok(trackingResponse.getBody());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching tracking data: " + e.getMessage());
+        }
+    }
+
 }
