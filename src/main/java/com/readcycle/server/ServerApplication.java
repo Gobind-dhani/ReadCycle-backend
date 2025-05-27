@@ -8,6 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ServerApplication {
 
 	public static void main(String[] args) {
+
+
+
 		// Use environment variables if running on Railway or any production environment
 		String googleClientId = System.getenv("GOOGLE_CLIENT_ID");
 		String googleClientSecret = System.getenv("GOOGLE_CLIENT_SECRET");
@@ -36,6 +39,8 @@ public class ServerApplication {
 		if (googleClientSecret != null)
 			System.setProperty("GOOGLE_CLIENT_SECRET", googleClientSecret);
 
+		// Disable SSL validation BEFORE anything else
+		com.readcycle.server.util.SSLUtil.disableSSLVerification();
 		SpringApplication.run(ServerApplication.class, args);
 	}
 }
