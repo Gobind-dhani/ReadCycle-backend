@@ -39,7 +39,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         userRepository.findByProviderAndProviderId(provider, providerId)
                 .orElseGet(() -> {
-                    User newUser = new User(null, providerId, provider, name, email, avatarUrl);
+                    User newUser = new User(providerId, provider, name, email, avatarUrl, null);
+                    ;
                     return userRepository.save(newUser);
                 });
 
