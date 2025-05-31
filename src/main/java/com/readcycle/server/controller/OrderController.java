@@ -9,12 +9,18 @@ import com.readcycle.server.util.SSLUtil;
 import com.razorpay.RazorpayClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 import org.springframework.http.*;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -239,4 +245,69 @@ public class OrderController {
         }
     }
 
+    @GetMapping("/download-label/{awb}")
+    public ResponseEntity<byte[]> downloadShippingLabel(@PathVariable String awb, HttpServletRequest request) {
+        try {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+            }
+
+            String token = authHeader.substring(7);
+            String userId = jwtUtil.validateAndGetUserId(token);
+
+            Optional<Order> optionalOrder = orderRepository.findByAwb(awb);
+            if (optionalOrder.isEmpty() || !optionalOrder.get().getUser().getId().equals(Long.parseLong(userId))) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            String labelApiUrl = "https://track.delhivery.com/api/p/packing_slip?wbns=" + awb + "&pdf=true";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Token de98d0920680bab24a81d26e9f588e325dc20090");
+
+            HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> delhiveryResponse = restTemplate.exchange(
+                    labelApiUrl,
+                    HttpMethod.GET,
+                    requestEntity,
+                    String.class
+            );
+
+            if (delhiveryResponse.getStatusCode() != HttpStatus.OK) {
+                return ResponseEntity.status(delhiveryResponse.getStatusCode()).body(null);
+            }
+
+            JsonNode rootNode = objectMapper.readTree(delhiveryResponse.getBody());
+            JsonNode packagesNode = rootNode.path("packages");
+
+            if (!packagesNode.isArray() || packagesNode.size() == 0) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            String pdfUrl = packagesNode.get(0).path("pdf_download_link").asText();
+
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+            HttpGet httpGet = new HttpGet(pdfUrl);
+
+            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
+                if (response.getStatusLine().getStatusCode() == 200) {
+                    byte[] pdfBytes = EntityUtils.toByteArray(response.getEntity());
+
+                    HttpHeaders responseHeaders = new HttpHeaders();
+                    responseHeaders.setContentType(MediaType.APPLICATION_PDF);
+                    responseHeaders.setContentDisposition(ContentDisposition.builder("attachment")
+                            .filename("shipping-label-" + awb + ".pdf")
+                            .build());
+
+                    return new ResponseEntity<>(pdfBytes, responseHeaders, HttpStatus.OK);
+                } else {
+                    return ResponseEntity.status(response.getStatusLine().getStatusCode()).body(null);
+                }
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }
