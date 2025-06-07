@@ -2,11 +2,14 @@ package com.readcycle.server.entity;
 
 
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 
@@ -40,6 +43,9 @@ public class Book {
     private String authorBio;
     @Column(name = "average_rating")
     private Float averageRating;
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonManagedReference
+    private List<Review> reviews = new ArrayList<>();
 
     // Add constructors, getters, and setters
 
