@@ -1,17 +1,27 @@
-# Use an official lightweight JDK 17 base image
-FROM eclipse-temurin:17-jdk-alpine
+# === STAGE 1: Build the application using Maven ===
+FROM maven:3.9.6-eclipse-temurin-17-alpine AS build
 
-# Set working directory inside the container
 WORKDIR /app
 
-# ✅ Correct Maven path here
-COPY target/server-0.0.1.jar app.jar
+# Copy pom.xml and download dependencies (leverages Docker cache)
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-# Let Render dynamically assign the port
+# Copy source files
+COPY src ./src
+
+# Build the application
+RUN mvn clean package -DskipTests
+
+# === STAGE 2: Run the application ===
+FROM eclipse-temurin:17-jdk-alpine
+
+WORKDIR /app
+
+# Copy only the JAR from the previous stage
+COPY --from=build /app/target/*.jar app.jar
+
 ENV PORT=8080
-
-# Expose the port (Render uses dynamic ports, but this is good practice)
 EXPOSE 8080
 
-# Run the Spring Boot app using the dynamic port
 CMD ["sh", "-c", "java -jar app.jar --server.port=$PORT"]
