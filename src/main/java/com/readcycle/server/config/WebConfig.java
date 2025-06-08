@@ -13,10 +13,15 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("*")
+                        .allowedOriginPatterns(
+                                "http://localhost:3000",
+                                "https://*.vercel.app",        // covers both qa-readcycle & readcycle.vercel.app
+                                "https://readcycle.in",
+                                "https://www.readcycle.in"
+                        )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*");
-
+                        .allowedHeaders("*")
+                        .allowCredentials(false); // set to false if not using cookies or Authorization headers
             }
         };
     }
