@@ -12,9 +12,18 @@ public class WebConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**").allowedOrigins("http://localhost:3000"); // React dev server
+                registry.addMapping("/**")
+                        .allowedOrigins(
+                                "http://localhost:3000",                         // local dev frontend
+                                "https://qa-readcycle.vercel.app",              // your deployed frontend
+                                "https://readcycle.vercel.app",
+                                "https://www.readcycle.in/"
+                                // in case of production domain
+                        )
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true); // needed if using cookies or auth headers
             }
         };
     }
 }
-
