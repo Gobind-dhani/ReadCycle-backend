@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*") // Enable for frontend access
 public class BookController {
 
     private final BookRepository bookRepository;
