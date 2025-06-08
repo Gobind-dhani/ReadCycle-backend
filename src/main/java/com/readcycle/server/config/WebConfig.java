@@ -14,10 +14,8 @@ public class WebConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOriginPatterns(
-                                "http://localhost:3000",
-                                "https://qa-readcycle.vercel.app",
-                                "https://readcycle.in",
                                 "https://www.readcycle.in"
+
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
