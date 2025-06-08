@@ -13,16 +13,15 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "http://localhost:3000",                         // local dev frontend
-                                "https://qa-readcycle.vercel.app",              // your deployed frontend
-                                "https://readcycle.vercel.app",
-                                "https://www.readcycle.in/"
-                                // in case of production domain
+                        .allowedOriginPatterns(
+                                "http://localhost:3000",
+                                "https://qa-readcycle.vercel.app",
+                                "https://readcycle.in",
+                                "https://www.readcycle.in"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
-                        .allowCredentials(true); // needed if using cookies or auth headers
+                        .allowCredentials(true);
             }
         };
     }
