@@ -44,7 +44,7 @@ public class OrderController {
 
     {
         try {
-            razorpayClient = new RazorpayClient("rzp_test_fLdHPGEAL3ijP6", "dTMvSdX663pm23V25U460UtT");
+            razorpayClient = new RazorpayClient("rzp_live_tXyMppu9YvWQ37", "4P9O1a40eug7IrvDLva2o1Fh");
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize Razorpay client", e);
         }
