@@ -43,7 +43,7 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
         User user = userRepository.findByProviderAndProviderId(provider, providerId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String token = jwtUtil.generateToken(user.getId().toString(), user.getEmail());
+        String token = jwtUtil.generateToken(user.getId().toString(), user.getEmail(), user.getPhone());
 
 
         // Serialize user object to JSON and encode it for URL

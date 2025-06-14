@@ -105,7 +105,7 @@ public class WhatsappAuthController {
             return userRepository.save(newUser);
         });
 
-        String token = jwtUtil.generateToken(user.getId().toString(), user.getEmail());
+        String token = jwtUtil.generateToken(user.getId().toString(), user.getEmail(), user.getPhone());
 
         response.put("token", token);
         response.put("user", user);
