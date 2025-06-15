@@ -26,6 +26,7 @@ public class Book {
     private String title;
     private String author;
     private double price;
+    private Double sellPrice;
     private String condition;
     private String description;
     @Column(name = "image_url")
