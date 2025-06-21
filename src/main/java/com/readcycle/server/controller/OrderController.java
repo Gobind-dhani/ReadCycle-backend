@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.readcycle.server.entity.*;
 import com.readcycle.server.repository.*;
 import com.readcycle.server.security.JwtUtil;
+import com.readcycle.server.service.BuyOrderNotificationService;
 import com.readcycle.server.util.SSLUtil;
 import com.razorpay.RazorpayClient;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +37,8 @@ public class OrderController {
     private final CartItemRepository cartItemRepository;
     private final AddressRepository addressRepository;
     private final JwtUtil jwtUtil;
+    private final BuyOrderNotificationService buyOrderNotificationService;
+
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
@@ -195,6 +198,8 @@ public class OrderController {
 
             order.setItems(orderItems);
             orderRepository.save(order);
+
+            buyOrderNotificationService.sendBuyOrderConfirmation(defaultAddress.getPhone(), awbNumber);
 
             // Clear the cart
             cartItemRepository.deleteByUser(user);
