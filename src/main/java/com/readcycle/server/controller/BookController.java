@@ -1,7 +1,6 @@
 package com.readcycle.server.controller;
 
-
-
+import com.readcycle.server.dto.BookSummaryDto;
 import com.readcycle.server.entity.Book;
 import com.readcycle.server.repository.BookRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,18 +22,18 @@ public class BookController {
     }
 
     @GetMapping("/books")
-    public List<Book> getBooks(@RequestParam(required = false) String genre) {
+    public List<BookSummaryDto> getBooks(@RequestParam(required = false) String genre) {
         if (genre != null && !genre.isEmpty()) {
-            return bookRepository.findByGenreIgnoreCase(genre);
+            return bookRepository.findByGenreIgnoreCaseSummary(genre);
         } else {
-            return bookRepository.findAll();
+            return bookRepository.findAllBookSummaries();
         }
     }
 
     @GetMapping("/books/{id}")
     public ResponseEntity<Book> getBookById(@PathVariable Long id) {
         return bookRepository.findById(id)
-                .map(ResponseEntity::ok)//
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -48,5 +47,4 @@ public class BookController {
         request.getSession().invalidate(); // Invalidate the session
         response.sendRedirect("http://localhost:3000"); // Redirect to homepage
     }
-
 }
