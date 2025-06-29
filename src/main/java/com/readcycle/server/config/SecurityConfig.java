@@ -30,6 +30,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/books/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/logout/**").permitAll()
+
                         .requestMatchers("/auth/send-otp", "/auth/verify-otp").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()

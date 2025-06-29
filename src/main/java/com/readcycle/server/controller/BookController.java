@@ -43,8 +43,8 @@ public class BookController {
     }
 
     @GetMapping("/logout")
-    public void logout(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public ResponseEntity<String> logout(HttpServletRequest request) {
         request.getSession().invalidate(); // Invalidate the session
-        response.sendRedirect("http://localhost:3000"); // Redirect to homepage
+        return ResponseEntity.ok("Logged out successfully");
     }
 }
