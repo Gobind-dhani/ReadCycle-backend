@@ -8,7 +8,8 @@ import lombok.Data;
 public class BookSummaryDto {
     private Long id;
     private String title;
-    private String author;
+    private Double sellPrice;
     private double price;
     private String imageUrl;
+
 }
