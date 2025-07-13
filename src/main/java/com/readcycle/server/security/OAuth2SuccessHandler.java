@@ -22,7 +22,7 @@ public class OAuth2SuccessHandler implements org.springframework.security.web.au
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    private final String FRONTEND_REDIRECT_URL = "http://localhost:3000/oauth2/redirect";
+    private final String FRONTEND_REDIRECT_URL = "https://readcycle-backend-gyud.onrender.com/oauth2/redirect";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
