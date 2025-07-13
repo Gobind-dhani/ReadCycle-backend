@@ -15,7 +15,7 @@ public class BuyOrderNotificationService {
     @Value("${gupshup.api.key}")
     private String gupshupApiKey;
 
-    public void sendBuyOrderConfirmation(String mobile, String awb) {
+    public void sendBuyOrderConfirmation(String mobile, String customerName, String awb, String items, String amountPaid, String trackingUrl) {
         String formattedMobile = formatMobile(mobile);
         String url = "https://api.gupshup.io/wa/api/v1/msg";
 
@@ -30,12 +30,15 @@ public class BuyOrderNotificationService {
         body.add("src.name", "Readcycle");
         body.add("destination", formattedMobile);
 
-        String customMessage = String.format(
-                "🎉 Thank you for your order on Readcycle!\n\nYour books are on the way 📦\nAWB No: %s\nTrack anytime from your profile section.\n\nHappy Reading! 📚",
-                awb
-        );
+        body.add("type", "template");
+        body.add("template.id", "1e6f2b37-7ce9-40dd-a3cc-2478373b7873");
 
-        body.add("message", customMessage);
+        // Add template params for placeholders {{1}} to {{5}}
+        body.add("template.params[0]", customerName);
+        body.add("template.params[1]", awb);
+        body.add("template.params[2]", items);
+        body.add("template.params[3]", amountPaid);
+        body.add("template.params[4]", trackingUrl);
 
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
         RestTemplate restTemplate = new RestTemplate();
@@ -46,6 +49,7 @@ public class BuyOrderNotificationService {
             System.err.println("❌ Failed to send WhatsApp order confirmation: " + e.getMessage());
         }
     }
+
 
     private String formatMobile(String mobile) {
         mobile = mobile.replaceAll("[^\\d]", "");

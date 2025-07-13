@@ -199,8 +199,29 @@ public class OrderController {
             order.setItems(orderItems);
             orderRepository.save(order);
 
-            buyOrderNotificationService.sendBuyOrderConfirmation(defaultAddress.getPhone(), awbNumber);
+// After saving the order:
 
+            orderRepository.save(order);
+
+// Prepare notification details
+            String customerName = defaultAddress.getName(); // Or user.getName() if available
+            String awbNumberFinal = awbNumber != null ? awbNumber : "N/A";
+            String itemsDescription = productDescription;
+            String amountPaidStr = String.format("%.2f", amount / 100.0);
+            String trackingUrl = "https://readcycle.com/api/orders/track/" + awbNumberFinal;
+
+// Call notification service with all required params
+            buyOrderNotificationService.sendBuyOrderConfirmation(
+                    defaultAddress.getPhone(),
+                    customerName,
+                    awbNumberFinal,
+                    itemsDescription,
+                    amountPaidStr,
+                    trackingUrl
+            );
+
+// Clear the cart as before
+            cartItemRepository.deleteByUser(user);
             // Clear the cart
             cartItemRepository.deleteByUser(user);
 
