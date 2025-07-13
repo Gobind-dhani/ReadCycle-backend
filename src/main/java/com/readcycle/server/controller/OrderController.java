@@ -201,8 +201,6 @@ public class OrderController {
 
 // After saving the order:
 
-            orderRepository.save(order);
-
 // Prepare notification details
             String customerName = defaultAddress.getName(); // Or user.getName() if available
             String awbNumberFinal = awbNumber != null ? awbNumber : "N/A";
@@ -223,7 +221,6 @@ public class OrderController {
 // Clear the cart as before
             cartItemRepository.deleteByUser(user);
             // Clear the cart
-            cartItemRepository.deleteByUser(user);
 
             Map<String, Object> response = new HashMap<>();
             response.put("razorpay_order_id", razorpayOrder.get("id"));
