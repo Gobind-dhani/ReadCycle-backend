@@ -206,7 +206,7 @@ public class OrderController {
             String awbNumberFinal = awbNumber != null ? awbNumber : "N/A";
             String itemsDescription = productDescription;
             String amountPaidStr = String.format("%.2f", amount / 100.0);
-            String trackingUrl = "https://readcycle.com/api/orders/track/" + awbNumberFinal;
+            String trackingUrl = "https://readcycle.in/api/orders/track/" + awbNumberFinal;
 
 // Call notification service with all required params
             buyOrderNotificationService.sendBuyOrderConfirmation(
