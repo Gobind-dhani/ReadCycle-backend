@@ -63,9 +63,9 @@ public class SellCartController {
         item.setTitle(book.getTitle());
         item.setAuthor(book.getAuthor());
         item.setSellPrice(book.getSellPrice());
-        item.setQuantity(1); // default
-
+        item.setQuantity(1); // default quantity
         item.setUser(user);
+
         return sellCartItemRepository.save(item);
     }
 
