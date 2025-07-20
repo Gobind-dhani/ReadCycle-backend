@@ -20,8 +20,8 @@ import java.util.Map;
 @RequestMapping("/api/books/sell-orders")
 @RequiredArgsConstructor
 public class SellOrderController {
-    private final SellOrderNotificationService whatsappService;
 
+    private final SellOrderNotificationService whatsappService;
     private final SellOrderRepository sellOrderRepository;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -72,9 +72,9 @@ public class SellOrderController {
             shipment.put("products_desc", bookTitle);
             shipment.put("total_amount", expectedPrice);
             shipment.put("payment_mode", "Pickup");
-            shipment.put("cod_amount", 0);// Still set, but ignored in Prepaid mode
+            shipment.put("cod_amount", 0);
             shipment.put("return_address", "F-228, Lado Sarai");
-            shipment.put("return_type", "pickup"); // ✅ This line makes it a reverse pickup
+            shipment.put("return_type", "pickup");
             shipment.put("return_city", "Delhi");
             shipment.put("return_state", "Delhi");
             shipment.put("return_pin", "110030");
@@ -114,7 +114,6 @@ public class SellOrderController {
                     String.class
             );
 
-            // Log raw response
             System.out.println("Delhivery Raw Response: " + delhiveryResponse.getBody());
 
             JsonNode rootNode = objectMapper.readTree(delhiveryResponse.getBody());
@@ -153,7 +152,6 @@ public class SellOrderController {
             sellOrder.setPickupSlot(pickupSlot);
             sellOrder.setPaymentMethod(paymentMethod);
 
-            // Payment method-specific fields
             if ("UPI".equalsIgnoreCase(paymentMethod)) {
                 sellOrder.setUpiName(upiName);
                 sellOrder.setUpiId(upiId);
@@ -166,10 +164,23 @@ public class SellOrderController {
 
             sellOrder.setAwb(awbNumber);
             sellOrder.setStatus("PENDING");
-            whatsappService.sendSellOrderConfirmation(phone, awbNumber);
-
 
             sellOrderRepository.save(sellOrder);
+
+            //  Send WhatsApp notification after saving
+            String fullPickupAddress = addressLine1 + ", " +
+                    (addressLine2.isEmpty() ? "" : addressLine2 + ", ") +
+                    (landmark.isEmpty() ? "" : landmark + ", ") +
+                    city + ", " + state + " - " + pincode;
+
+            whatsappService.sendSellOrderConfirmation(
+                    phone,
+                    name,
+                    bookTitle,
+                    fullPickupAddress,
+                    paymentMethod,
+                    String.valueOf(expectedPrice)
+            );
 
             return ResponseEntity.ok(Map.of(
                     "message", "Sell order created successfully",

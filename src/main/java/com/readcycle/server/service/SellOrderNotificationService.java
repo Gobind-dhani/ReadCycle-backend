@@ -15,40 +15,46 @@ public class SellOrderNotificationService {
     @Value("${gupshup.api.key}")
     private String gupshupApiKey;
 
-    public void sendSellOrderConfirmation(String mobile, String awb) {
+    @Value("${gupshup.whatsapp.sellorder.template}")
+    private String gupshupSellOrderTemplate;
+
+    public void sendSellOrderConfirmation(String mobile, String customerName, String bookTitle, String pickupAddress, String paymentMethod, String amount) {
         String formattedMobile = formatMobile(mobile);
-        String url = "https://api.gupshup.io/wa/api/v1/msg";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
-        headers.set("apikey", gupshupApiKey);
-
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("channel", "whatsapp");
-        body.add("source", "15557653121"); // your WABA number
-        body.add("src.name", "Readcycle");
-        body.add("destination", formattedMobile);
-
-        // Custom message instead of template
-        String customMessage = String.format(
-                "Thank you for placing a sell order with Readcycle! \n\nYour pickup has been scheduled.\nAWB No: %s\nWe’ll notify you once it's picked up.\n\nKeep Reading. Keep Reusing. ♻️",
-                awb
-        );
-        body.add("message", customMessage);
-
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
-        RestTemplate restTemplate = new RestTemplate();
+        String url = "https://api.gupshup.io/wa/api/v1/template/msg";
 
         try {
-            restTemplate.postForEntity(url, entity, String.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.setAccept(java.util.Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.add("apikey", gupshupApiKey);
+
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("channel", "whatsapp");
+            body.add("source", "15557653121"); // your WABA number
+            body.add("src.name", "Readcycle");
+            body.add("destination", formattedMobile);
+
+            // Build template JSON matching your new sell order template
+            String templateJson = String.format(
+                    "{\"id\":\"%s\",\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]}",
+                    gupshupSellOrderTemplate, customerName, bookTitle, pickupAddress, paymentMethod, amount
+            );
+            body.add("template", templateJson);
+
+            HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
+            RestTemplate restTemplate = new RestTemplate();
+
+            ResponseEntity<String> apiResponse = restTemplate.postForEntity(url, entity, String.class);
+
+            System.out.println("✅ WhatsApp sell order confirmation sent. Response: " + apiResponse.getBody());
+
         } catch (Exception e) {
-            System.err.println("❌ Failed to send WhatsApp confirmation: " + e.getMessage());
+            System.err.println("❌ Failed to send WhatsApp sell order confirmation: " + e.getMessage());
         }
     }
 
     private String formatMobile(String mobile) {
-        mobile = mobile.replaceAll("[^\\d]", "");
+        mobile = mobile.replaceAll("[^\\d]", ""); // Keep only digits
         if (mobile.startsWith("0")) {
             mobile = mobile.substring(1);
         }
